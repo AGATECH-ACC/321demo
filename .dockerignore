@@ -1,0 +1,17 @@
+node_modules
+.next
+.git
+.env*
+data
+backups
+.test-data
+*.tsbuildinfo
+tests
+README.md
+company.md
+operations.md
+*.sqlite*
+*.db
+*.log
+*.pem
+*.key

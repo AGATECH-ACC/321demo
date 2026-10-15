@@ -1,0 +1,3 @@
+import type {NextConfig} from "next";
+const config:NextConfig={turbopack:{root:process.cwd()},outputFileTracingRoot:process.cwd(),outputFileTracingExcludes:{"/*":["./.env*","./data/**/*","./backups/**/*","./.test-data/**/*"]},serverExternalPackages:["better-sqlite3"],poweredByHeader:false,async headers(){return [{source:"/sw.js",headers:[{key:"Cache-Control",value:"no-cache, no-store, must-revalidate"},{key:"Service-Worker-Allowed",value:"/"}]},{source:"/:path*",headers:[{key:"Referrer-Policy",value:"no-referrer"},{key:"X-Content-Type-Options",value:"nosniff"},{key:"X-Frame-Options",value:"DENY"}]}]}};
+export default config;

@@ -1,0 +1,15 @@
+services:
+  studio:
+    build: .
+    ports:
+      - "127.0.0.1:3000:3000"
+    env_file: .env
+    environment:
+      DATABASE_PATH: /app/data/studio.sqlite
+    volumes:
+      - studio-data:/app/data
+      - studio-backups:/app/backups
+    restart: unless-stopped
+volumes:
+  studio-data:
+  studio-backups:

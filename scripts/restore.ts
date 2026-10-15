@@ -1,0 +1,9 @@
+import './env';
+import Database from 'better-sqlite3';
+import {existsSync,mkdirSync,copyFileSync,chmodSync} from 'node:fs';
+import {resolve,dirname} from 'node:path';
+import {databasePath} from '../lib/database';
+const source=process.argv[2],destination=databasePath();if(!source)throw Error('Usage: npm run restore -- /absolute/path/to/backup.sqlite. Stop the app first and choose an empty DATABASE_PATH.');
+if(existsSync(destination)||existsSync(destination+'-wal')||existsSync(destination+'-shm'))throw Error('Restore only accepts an empty destination. Stop the app and move its current database aside first.');
+const check=new Database(resolve(source),{readonly:true,fileMustExist:true});if(check.pragma('integrity_check',{simple:true})!=='ok')throw Error('Backup integrity check failed.');for(const table of ['jobs','studios','members','user','session','account'])check.prepare('SELECT 1 FROM '+table+' LIMIT 1').get();check.close();
+mkdirSync(dirname(destination),{recursive:true,mode:0o700});copyFileSync(resolve(source),destination);chmodSync(destination,0o600);console.log('Restored database to '+destination);

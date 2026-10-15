@@ -1,0 +1,8 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import sharp from 'sharp';
+import {normalizeClientLogo} from '../lib/client-logo.ts';
+import {studioSchema,decodeStudio} from '../app/studios-model.ts';
+test('legacy studios decode without a logo and unsafe logo sources are rejected',()=>{assert.equal(decodeStudio({id:'test',revision:1,updated_at:'now',data:JSON.stringify({kind:'client',name:'Client'})}).logo,'');for(const logo of ['https://example.com/logo.png','data:image/svg+xml;base64,PHN2Zy8+','javascript:alert(1)'])assert.equal(studioSchema.safeParse({kind:'client',name:'Client',logo}).success,false);});
+test('client logos are resized, metadata stripped and stored as a transparent PNG',async()=>{const original=await sharp({create:{width:800,height:400,channels:4,background:{r:20,g:30,b:40,alpha:.5}}}).png().toBuffer();const result=await normalizeClientLogo('data:image/png;base64,'+original.toString('base64'));const metadata=await sharp(Buffer.from(result.split(',')[1],'base64')).metadata();assert.equal(metadata.width,512);assert.equal(metadata.height,256);assert.equal(metadata.format,'png');assert.equal(metadata.hasAlpha,true);assert.equal(metadata.exif,undefined);assert.equal(await normalizeClientLogo(''),'');});
+test('corrupt images, oversized uploads and disguised SVGs cannot be saved',async()=>{await assert.rejects(normalizeClientLogo('data:image/png;base64,YmFk'));await assert.rejects(normalizeClientLogo('data:image/png;base64,'+Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>').toString('base64')));await assert.rejects(normalizeClientLogo('data:image/png;base64,'+Buffer.alloc(2*1024*1024+1).toString('base64')),/2 MB/);});

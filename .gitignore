@@ -1,0 +1,19 @@
+node_modules/
+.next/
+.env*
+!.env.example
+data/
+backups/
+*.tsbuildinfo
+next-env.d.ts
+.test-data/
+*.sqlite*
+*.db
+*.db-*
+*.log
+.DS_Store
+*.pem
+*.key
+# Private source research stays local; not needed to run the application.
+/company.md
+/operations.md
