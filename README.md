@@ -149,3 +149,26 @@ Built and maintained by **AGA Ventures**. Open **Install app on your phone** in 
 The repository contains source and fictional seed data, not the private company research, local database, test account credentials, environment secrets or backups. A new installation needs its own owner setup and team invitations.
 
 Implementation reference: [Next.js progressive web app guide](https://nextjs.org/docs/app/guides/progressive-web-apps).
+
+## Vercel deployment
+
+Vercel Functions cannot persist the local SQLite database. On Vercel, configure a **Turso/libSQL database**; the app uses its remote SQL client for all accounts, sessions, rate limits, studios and videos. Local Node/Docker installations continue to use `better-sqlite3` unless `TURSO_DATABASE_URL` is set.
+
+Set these **Production** environment variables before redeploying:
+
+| Variable | Value |
+| --- | --- |
+| `BETTER_AUTH_SECRET` | A fresh, stable random secret of at least 32 characters. Generate with `openssl rand -hex 32`. |
+| `BETTER_AUTH_URL` | The exact stable HTTPS website origin, such as `https://321demo-gray.vercel.app`. |
+| `TURSO_DATABASE_URL` | The database URL supplied by Turso. |
+| `TURSO_AUTH_TOKEN` | The private token for that database. Store as a secret. |
+
+Connect Turso from Vercel's Storage/Marketplace page for this project. Provider terms and plan selection must be completed by the account owner. The app refuses local-file fallbacks on Vercel; moving SQLite into `/tmp` would lose data and is not a supported fix.
+
+Schema creation is repeat-safe and happens on first database access. Provision the first owner with `npm run setup -- --email you@example.com --name "Your name"` in an environment containing the **deployment's** variables, then open the one-use setup link. Optional demo data can be added using `npm run seed` in that same environment. Do not copy a developer `.env` into the public repository or use local test passwords on the hosted site.
+
+The health endpoint returns 503 when authentication or the database is unavailable. A successful build alone does not establish that the runtime is configured. Check `/api/health`, sign-in, an assigned editor's visibility, and saving/reloading a video after deployment. Preview deployments need their own origin, secret and isolated database; do not connect previews to production data by default.
+
+Local `backup`/`restore` commands handle only local SQLite. For Turso, use the provider's export, backup and restore facilities. Nothing automatically imports or overwrites the existing local data.
+
+`npm run test:libsql` runs the complete role/workflow integration suite through the libSQL driver against a temporary local file. It validates driver compatibility without touching a cloud database; remote connectivity must also be verified after connection.

@@ -17,3 +17,5 @@ next-env.d.ts
 # Private source research stays local; not needed to run the application.
 /company.md
 /operations.md
+
+.vercel/

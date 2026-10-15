@@ -13,7 +13,7 @@ export async function POST(request:Request){
  if(path==='/api/auth/sign-in/email'){
   let body:{email?:unknown};try{body=await request.clone().json();}catch{return Response.json({error:'Invalid request.'},{status:400});}
   const email=typeof body.email==='string'?body.email.trim().toLowerCase():'';
-  if(email.length>250||!limit('login:'+email,10,300))return Response.json({error:'Too many attempts. Try again in five minutes.'},{status:429});
+  if(email.length>250||!await limit('login:'+email,10,300))return Response.json({error:'Too many attempts. Try again in five minutes.'},{status:429});
  }
  return (await authReady()).handler(request);
 }

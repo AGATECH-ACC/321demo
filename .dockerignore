@@ -15,3 +15,5 @@ operations.md
 *.log
 *.pem
 *.key
+
+.vercel

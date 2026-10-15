@@ -9,8 +9,11 @@ import sharp from 'sharp';
 import {summarizeKpis} from '../app/production-kpis';
 const temp=mkdtempSync(join(tmpdir(),'three21-test-')),origin='http://localhost:3031';
 process.env.DATABASE_PATH=join(temp,'studio.sqlite');process.env.BETTER_AUTH_URL=origin;process.env.BETTER_AUTH_SECRET=randomBytes(48).toString('hex');Object.assign(process.env,{NODE_ENV:'production'});
+const libsqlTest=process.env.TEST_DATABASE_DRIVER==='libsql';
+delete process.env.TURSO_AUTH_TOKEN;delete process.env.VERCEL;
+if(libsqlTest)process.env.TURSO_DATABASE_URL='file:'+process.env.DATABASE_PATH;else delete process.env.TURSO_DATABASE_URL;
 const {authReady}=await import('../lib/auth');const {sqlite}=await import('../lib/database');const {createAccountLink}=await import('../lib/account-links');const {CHECKS}=await import('../app/model');
-await authReady();const local=sqlite(),ownerId=crypto.randomUUID(),at=new Date().toISOString(),password=randomBytes(24).toString('base64url');
+await authReady();const local=libsqlTest?new Database(process.env.DATABASE_PATH):sqlite(),ownerId=crypto.randomUUID(),at=new Date().toISOString(),password=randomBytes(24).toString('base64url');
 local.prepare("INSERT INTO members(id,email,name,role,created_at,updated_at) VALUES(?,?,'Test owner','owner',?,?)").run(ownerId,'owner@example.test',at,at);
 let server:ChildProcess|undefined,logs='';
 async function start(){server=spawn(process.execPath,['node_modules/next/dist/bin/next','start','--hostname','127.0.0.1','--port','3031'],{env:process.env,stdio:['ignore','pipe','pipe']});server.stdout?.on('data',b=>logs+=b);server.stderr?.on('data',b=>logs+=b);for(let i=0;i<100;i++){try{if((await fetch(origin+'/api/health')).ok)return;}catch{}if(server.exitCode!==null)throw Error(logs);await new Promise(r=>setTimeout(r,200));}throw Error('Server did not start: '+logs);}
@@ -25,7 +28,7 @@ try{
  await request('/api/jobs','',undefined,403);await request('/api/studios','',undefined,403);
  await request('/api/auth/sign-up/email','',{email:'intruder@example.test',password,name:'Intruder'},403);
  assert.equal((await fetch(origin+'/api/account',{method:'POST',headers:{Origin:'https://untrusted.example','Content-Type':'application/json'},body:'{}'})).status,403);
- const setup=createAccountLink(ownerId);await activate(setup);await request('/api/account','',{token:setup.split('#')[1],password},400);
+ const setup=await createAccountLink(ownerId);await activate(setup);await request('/api/account','',{token:setup.split('#')[1],password},400);
  let owner=await login('owner@example.test');assert.equal((await request('/api/team',owner)).members[0].role,'owner');
  assert.equal((await request('/api/demo',owner,{})).added,17);assert.equal((await request('/api/demo',owner,{})).added,0);
  const logo='data:image/png;base64,'+(await sharp({create:{width:20,height:10,channels:4,background:{r:20,g:40,b:60,alpha:0.5}}}).png().toBuffer()).toString('base64');
@@ -53,9 +56,12 @@ try{
  let editor=(await request('/api/team',owner)).members.find((m:{id:string})=>m.id===ids.editor);await request('/api/team',owner,{...editor,active:false});await request('/api/jobs',cookies.editor,undefined,403);
  // Missing and foreign origins cannot mutate authenticated work.
  for(const headers of [new Headers({Cookie:owner}),new Headers({Cookie:owner,Origin:'https://other.example'})])assert.equal((await fetch(origin+'/api/demo',{method:'POST',headers})).status,403);
+ if(!libsqlTest){
  const backup=join(temp,'backup.sqlite');let result=spawnSync(process.execPath,['node_modules/tsx/dist/cli.mjs','scripts/backup.ts',backup],{env:process.env,encoding:'utf8'});assert.equal(result.status,0,result.stderr);assert(existsSync(backup));
  const restored=join(temp,'restored.sqlite');result=spawnSync(process.execPath,['node_modules/tsx/dist/cli.mjs','scripts/restore.ts',backup],{env:{...process.env,DATABASE_PATH:restored},encoding:'utf8'});assert.equal(result.status,0,result.stderr);const restoredDb=new Database(restored);assert.equal((restoredDb.prepare('SELECT count(*) n FROM jobs').get() as {n:number}).n,10);restoredDb.close();
+ }
  await stop();await start();assert.equal((await request('/api/studios',owner)).clients.find((c:{id:string})=>c.id===clientStudio.id).logo,clientStudio.logo);clientStudio=await request('/api/studios',owner,{id:clientStudio.id,revision:clientStudio.revision,studio:{...clientStudio,logo:''}});assert.equal(clientStudio.logo,'');assert.equal((await request('/api/jobs',owner)).length,10);assert.equal((await request('/api/jobs',owner)).find((j:{id:string})=>j.id===job.id).status,'Final approved');
  await request('/api/auth/sign-out',owner,{});await request('/api/jobs',owner,undefined,403);
+ console.log('Database driver: '+(libsqlTest?'libSQL (isolated file transport)':'better-sqlite3'));
  console.log('PASS: real Next.js production server; login and one-use setup/recovery; owner/Jace/admin/editor isolation; assignments and finance redaction; edits, stale writes, approvals, revocation; origin protection; seed idempotency; backups/restore; persistence across restart; sign-out.');
 }finally{await stop();local.close();}

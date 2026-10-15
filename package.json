@@ -17,11 +17,15 @@
     "backup": "tsx scripts/backup.ts",
     "restore": "tsx scripts/restore.ts",
     "account:reset": "tsx scripts/reset-account.ts",
-    "test:integration": "tsx tests/integration.ts"
+    "test:integration": "tsx tests/integration.ts",
+    "test:libsql": "TEST_DATABASE_DRIVER=libsql tsx tests/integration.ts"
   },
   "dependencies": {
+    "@libsql/client": "0.18.0",
+    "@libsql/kysely-libsql": "0.4.1",
     "better-auth": "1.7.7",
     "better-sqlite3": "13.0.3",
+    "kysely": "0.29.6",
     "lucide-react": "^1.31.0",
     "next": "16.4.0",
     "react": "19.3.0",
